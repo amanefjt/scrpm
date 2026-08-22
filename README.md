@@ -1,54 +1,24 @@
-# Scrpm (スクラム) — ポモドーロタイマー for macOS
+# Scrpm — ポモドーロタイマー for macOS
 
 Scrpm は、作業と休憩のサイクルを管理し、集中力を高めるための macOS 専用ポモドーロタイマーアプリです。
 休憩時間になると、画面全体が心地よい休憩画面（フルスクリーンオーバーレイ）で覆われ、強制的にリフレッシュを促すのが特徴です。
 
-リポジトリ: https://github.com/amanefjt/scrpm
+---
 
-> [!NOTE]
-> このリポジトリは公開にあたって単一コミットから始めています（開発途中のやり取りを含む
-> 詳細な変更履歴は非公開のローカル履歴として別に保持）。
+## 📥 ダウンロード
+
+[Releases ページ](https://github.com/amanefjt/scrpm/releases/latest) から `scrpm.zip` をダウンロードしてください。
 
 ---
 
-## 📥 入手方法
-
-### GitHub Releases から（一番簡単）
-[Releases](https://github.com/amanefjt/scrpm/releases) から最新の `scrpm.zip` をダウンロードし、
-下の「インストール・起動方法」に従ってインストールしてください。
-
-### ソースからビルドする
-Xcode があれば `git clone` して自分でビルドすることもできます（下の「💻 開発者向け」を参照）。
-
-### 配布用パッケージを作る（Release を公開する側の手順）
-Apple Developer Program（署名・公証）は使わず、Release ビルドをそのまま zip にする方法。
-Sandbox 無効・アドホック署名の都合上、これが一番手間のかからないやり方
-（他の選択肢との比較は末尾の「📦 配布方法について」を参照）。
-
-```bash
-xcodebuild -project scrpm.xcodeproj -target scrpm -configuration Release build
-cd build/Release
-zip -r scrpm.zip scrpm.app
-cd ../..
-gh release create v1.0.0 build/Release/scrpm.zip --title "v1.0.0" --notes "初回リリース"
-```
-
-`gh release create` の代わりに GitHub の Releases ページから手動でアップロードしてもよい。
-AirDrop・チャットで直接渡す場合も、できた `scrpm.zip` を送るだけで同様に使える。
-
-使う人ごとに `~/Library/Application Support/com.scrpm.app/` に独立したデータベースが
-作られるので、複数人で使っても記録が混ざったり衝突したりする心配はない。
-
----
-
-## 📥 インストール・起動方法（友達向け）
+## インストール・起動方法
 
 このアプリは、個人開発の「署名なしアプリ」として直接配布されているため、macOS のセキュリティ機能（Gatekeeper）によって、普通にダブルクリックしただけでは起動できないようになっています。
 
 以下の手順に沿って、インストールと初回起動を行ってください。
 
 ### 1. アプリケーションフォルダへの移動
-1. 送られてきた `scrpm.zip` をダブルクリックして解凍します。
+1. ダウンロードした `scrpm.zip` をダブルクリックして解凍します。
 2. 解凍された `scrpm.app`（または `scrpm`）を、Finder で **「アプリケーション」フォルダ** にドラッグ＆ドロップして移動します。
 
 ---
@@ -141,6 +111,16 @@ cp -R build/Release/scrpm.app /Applications/scrpm.app
 open /Applications/scrpm.app
 ```
 
+### 新しい Release を公開する（配布用 zip を作る）
+
+```bash
+xcodebuild -project scrpm.xcodeproj -target scrpm -configuration Release build
+cd build/Release && zip -r scrpm.zip scrpm.app && cd ../..
+gh release create v1.0.1 build/Release/scrpm.zip --title "v1.0.1" --notes "..."
+```
+
+`gh release create` の代わりに GitHub の Releases ページから手動でアップロードしてもよい。
+
 ---
 
 ## 📦 配布方法について
@@ -157,5 +137,14 @@ open /Applications/scrpm.app
 数人の友人・同僚に配る程度なら、費用も手間もかからない前者で十分という判断。継続的に大人数へ
 配りたくなったら後者を検討する（Sandbox 無効のままでも公証自体は可能）。
 
-ソースごと渡して各自でビルドしてもらう方法（上の「💻 開発者向け」参照）も、
-Xcode さえあれば一番シンプル。
+使う人ごとに `~/Library/Application Support/com.scrpm.app/` に独立したデータベースが
+作られるので、複数人で使っても記録が混ざったり衝突したりする心配はない。
+
+---
+
+## リポジトリについて
+
+https://github.com/amanefjt/scrpm
+
+このリポジトリは公開にあたって単一コミットから始めています（開発途中のやり取りを含む
+詳細な変更履歴は非公開のローカル履歴として別に保持）。
