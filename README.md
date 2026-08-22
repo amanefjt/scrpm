@@ -3,11 +3,25 @@
 Scrpm は、作業と休憩のサイクルを管理し、集中力を高めるための macOS 専用ポモドーロタイマーアプリです。
 休憩時間になると、画面全体が心地よい休憩画面（フルスクリーンオーバーレイ）で覆われ、強制的にリフレッシュを促すのが特徴です。
 
+リポジトリ: https://github.com/amanefjt/scrpm
+
+> [!NOTE]
+> このリポジトリは公開にあたって単一コミットから始めています（開発途中のやり取りを含む
+> 詳細な変更履歴は非公開のローカル履歴として別に保持）。
+
 ---
 
-## 📤 配布用パッケージを作る（送る側の手順）
+## 📥 入手方法
 
-Apple Developer Program（署名・公証）は使わず、Release ビルドをそのまま zip にして渡す方法。
+### GitHub Releases から（一番簡単）
+[Releases](https://github.com/amanefjt/scrpm/releases) から最新の `scrpm.zip` をダウンロードし、
+下の「インストール・起動方法」に従ってインストールしてください。
+
+### ソースからビルドする
+Xcode があれば `git clone` して自分でビルドすることもできます（下の「💻 開発者向け」を参照）。
+
+### 配布用パッケージを作る（Release を公開する側の手順）
+Apple Developer Program（署名・公証）は使わず、Release ビルドをそのまま zip にする方法。
 Sandbox 無効・アドホック署名の都合上、これが一番手間のかからないやり方
 （他の選択肢との比較は末尾の「📦 配布方法について」を参照）。
 
@@ -15,12 +29,14 @@ Sandbox 無効・アドホック署名の都合上、これが一番手間のか
 xcodebuild -project scrpm.xcodeproj -target scrpm -configuration Release build
 cd build/Release
 zip -r scrpm.zip scrpm.app
+cd ../..
+gh release create v1.0.0 build/Release/scrpm.zip --title "v1.0.0" --notes "初回リリース"
 ```
 
-できた `build/Release/scrpm.zip` を AirDrop・チャット・クラウドストレージなどで送る。
-受け取った相手は下の「インストール・起動方法」に従ってインストールする。
+`gh release create` の代わりに GitHub の Releases ページから手動でアップロードしてもよい。
+AirDrop・チャットで直接渡す場合も、できた `scrpm.zip` を送るだけで同様に使える。
 
-受け取る人ごとに `~/Library/Application Support/com.scrpm.app/` に独立したデータベースが
+使う人ごとに `~/Library/Application Support/com.scrpm.app/` に独立したデータベースが
 作られるので、複数人で使っても記録が混ざったり衝突したりする心配はない。
 
 ---
