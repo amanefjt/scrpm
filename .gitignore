@@ -1,0 +1,11 @@
+.DS_Store
+build/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+
+# Claude Code の内部作業データ（ブレインストーム・spec-driven-development の
+# タスクブリーフ/レビューdiff等）。プロダクト本体と無関係かつローカル絶対パスを
+# 含むため、リポジトリには含めない（2026-08-22、公開に合わせて除外）
+.superpowers/
