@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var longBreakMinutes: Int
     @State private var setsPerCycleValue: Int
     @State private var longBreakActionDelayMinutes: Int
+    @State private var idleActivationMinutesValue: Int
+    @State private var workInactivityDeactivationMinutesValue: Int
 
     init(onBack: @escaping () -> Void) {
         self.onBack = onBack
@@ -23,6 +25,8 @@ struct SettingsView: View {
         _longBreakMinutes = State(initialValue: Int(longBreakDuration / 60))
         _setsPerCycleValue = State(initialValue: setsPerCycle)
         _longBreakActionDelayMinutes = State(initialValue: Int(longBreakActionDelay / 60))
+        _idleActivationMinutesValue = State(initialValue: Int(idleActivationMinutes))
+        _workInactivityDeactivationMinutesValue = State(initialValue: Int(workInactivityDeactivationMinutes))
     }
 
     var body: some View {
@@ -36,6 +40,8 @@ struct SettingsView: View {
         .onChange(of: longBreakMinutes) { syncLongBreakMinutes() }
         .onChange(of: setsPerCycleValue) { syncSetsPerCycle() }
         .onChange(of: longBreakActionDelayMinutes) { syncLongBreakActionDelay() }
+        .onChange(of: idleActivationMinutesValue) { syncIdleActivationMinutes() }
+        .onChange(of: workInactivityDeactivationMinutesValue) { syncWorkInactivityDeactivationMinutes() }
         .onChange(of: timerManager.phase) { returnToTimerIfLeftIdle() }
     }
 
@@ -61,6 +67,14 @@ struct SettingsView: View {
 
     private func syncLongBreakActionDelay() {
         longBreakActionDelay = TimeInterval(longBreakActionDelayMinutes * 60)
+    }
+
+    private func syncIdleActivationMinutes() {
+        idleActivationMinutes = TimeInterval(idleActivationMinutesValue)
+    }
+
+    private func syncWorkInactivityDeactivationMinutes() {
+        workInactivityDeactivationMinutes = TimeInterval(workInactivityDeactivationMinutesValue)
     }
 
     private func returnToTimerIfLeftIdle() {
@@ -96,6 +110,15 @@ struct SettingsView: View {
                 }
                 Stepper(value: $longBreakActionDelayMinutes, in: longBreakDelayRange) {
                     Text("長い休憩で再開ボタンが出るまで: \(longBreakActionDelayText)")
+                }
+            }
+
+            Section("自動検知") {
+                Stepper(value: $idleActivationMinutesValue, in: 1...30) {
+                    Text("何分入力が続いたら自動的に作業を開始するか: \(idleActivationMinutesValue)分")
+                }
+                Stepper(value: $workInactivityDeactivationMinutesValue, in: 1...30) {
+                    Text("何分操作が無ければ自動的に作業を終了するか: \(workInactivityDeactivationMinutesValue)分")
                 }
             }
 

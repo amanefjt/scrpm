@@ -16,6 +16,8 @@ private enum DurationDefaults {
     static let longBreakDuration: TimeInterval = 10 * 60
     static let setsPerCycle: Int = 4
     static let longBreakActionDelay: TimeInterval = 5 * 60   // 長い休憩の開始からこの秒数経つまでボタンを表示しない
+    static let idleActivationMinutes: TimeInterval = 5           // 何分入力が続いたらIdle→Working自動開始するか
+    static let workInactivityDeactivationMinutes: TimeInterval = 5  // 何分無操作が続いたらWorking→Idle自動中断するか
 }
 
 private enum SettingsKey {
@@ -24,6 +26,8 @@ private enum SettingsKey {
     static let longBreakDuration = "settings.longBreakDuration"
     static let setsPerCycle = "settings.setsPerCycle"
     static let longBreakActionDelay = "settings.longBreakActionDelay"
+    static let idleActivationMinutes = "settings.idleActivationMinutes"
+    static let workInactivityDeactivationMinutes = "settings.workInactivityDeactivationMinutes"
 }
 
 private func storedDuration(_ key: String, default def: TimeInterval) -> TimeInterval {
@@ -61,11 +65,32 @@ var longBreakActionDelay: TimeInterval {
     set { UserDefaults.standard.set(newValue, forKey: SettingsKey.longBreakActionDelay) }
 }
 
+/// 何分入力が続いたら Idle→Working を自動開始するか（分単位）
+var idleActivationMinutes: TimeInterval {
+    get { storedDuration(SettingsKey.idleActivationMinutes, default: DurationDefaults.idleActivationMinutes) }
+    set { UserDefaults.standard.set(newValue, forKey: SettingsKey.idleActivationMinutes) }
+}
+
+/// 何分無操作が続いたら Working→Idle を自動中断するか（分単位）
+var workInactivityDeactivationMinutes: TimeInterval {
+    get { storedDuration(SettingsKey.workInactivityDeactivationMinutes, default: DurationDefaults.workInactivityDeactivationMinutes) }
+    set { UserDefaults.standard.set(newValue, forKey: SettingsKey.workInactivityDeactivationMinutes) }
+}
+
 // MARK: - ユーザーが変更できない値（挙動の根幹に関わる・秒単位の微調整は不要なため）
 
 let minimumRecordDuration: TimeInterval = 60
-let idlePollingInterval: TimeInterval = 30
-let idleActivationCount: Int = 10   // idlePollingInterval(30s) × 10 = 5分の入力継続でIdle自動開始
-let workInactivityDeactivationCount: Int = 10   // idlePollingInterval(30s) × 10 = 5分の無操作でWorking自動中断
+let idlePollingInterval: TimeInterval = 30   // ポーリング間隔自体は固定。設定できるのは「何分で検知するか」（上記）
 let restDayThreshold: TimeInterval = 1800   // 日合計がこれ未満なら「休養日」
 let noRestWarningDays: Int = 10             // 休養日ゼロ警告の対象期間（昨日までの日数）
+
+/// idleActivationMinutes を idlePollingInterval 単位の回数に換算したもの。
+/// 少なくとも1回は必要（0分設定などで即座に反応してしまうのを防ぐ）
+var idleActivationCount: Int {
+    max(1, Int((idleActivationMinutes * 60 / idlePollingInterval).rounded()))
+}
+
+/// workInactivityDeactivationMinutes を idlePollingInterval 単位の回数に換算したもの
+var workInactivityDeactivationCount: Int {
+    max(1, Int((workInactivityDeactivationMinutes * 60 / idlePollingInterval).rounded()))
+}
