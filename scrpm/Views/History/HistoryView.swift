@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 enum HistoryTab: Hashable {
     case day, week, month
@@ -7,6 +8,7 @@ enum HistoryTab: Hashable {
 struct HistoryView: View {
     let onBack: () -> Void
 
+    @Environment(\.modelContext) private var context
     @State private var selectedTab: HistoryTab = .day
     @State private var currentDate: Date = Date()
 
@@ -74,6 +76,9 @@ struct HistoryView: View {
         .frame(minWidth: 400, minHeight: 380)
         .onChange(of: selectedTab) { _, _ in
             currentDate = Date()
+        }
+        .onAppear {
+            SessionSyncExporter.importAll(context: context)
         }
     }
 

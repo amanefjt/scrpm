@@ -6,14 +6,18 @@ import AppKit
 ///
 /// タイマーとは別に開いておき、その日の作業ログをそのままコピーして日記にまとめる用途。
 /// 記録画面（HistoryView）が「集計を見る」ためのものなのに対し、こちらは
-/// 「テキストとして取り出す」ことに特化している
+/// 「テキストとして取り出す」ことに特化している。
+///
+/// 書き出し先・端末間同期の設定は SettingsView に集約している（2026-08-23）。
+/// 以前はここにも設定UIがあったが、⌘⇧L を押さないとたどり着けず見つけにくかったため。
+/// このウィンドウを開いたタイミングでは、表示中のログを最新化するため
+/// インポートだけは引き続き自動実行する
 struct WorkLogWindow: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \WorkSession.startTime) private var allSessions: [WorkSession]
 
     @State private var date: Date = Date()
     @State private var copied = false
-    @State private var exportDirectory: URL? = WorkLogExporter.directoryURL
 
     private var sessions: [WorkSession] {
         let cal = Calendar.current
@@ -33,6 +37,9 @@ struct WorkLogWindow: View {
             footer
         }
         .frame(minWidth: 420, minHeight: 320)
+        .onAppear {
+            SessionSyncExporter.importAll(context: context)
+        }
     }
 
     private var header: some View {
@@ -73,43 +80,18 @@ struct WorkLogWindow: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("合計 \(totalText)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(copied ? "コピーしました" : "全部コピー") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(logText, forType: .string)
-                    copied = true
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(logText.isEmpty)
+        HStack {
+            Text("合計 \(totalText)")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button(copied ? "コピーしました" : "全部コピー") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(logText, forType: .string)
+                copied = true
             }
-
-            HStack(spacing: 8) {
-                Text("書き出し先")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(exportDirectory?.path ?? "未設定（書き出さない）")
-                    .font(.caption)
-                    .foregroundStyle(exportDirectory == nil ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
-                Spacer()
-                Button("変更…") { chooseExportDirectory() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                if exportDirectory != nil {
-                    Button("解除") {
-                        WorkLogExporter.directoryURL = nil
-                        exportDirectory = nil
-                    }
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                }
-            }
+            .buttonStyle(.borderedProminent)
+            .disabled(logText.isEmpty)
         }
         .padding()
     }
@@ -129,20 +111,5 @@ struct WorkLogWindow: View {
     private func navigate(by delta: Int) {
         date = Calendar.current.date(byAdding: .day, value: delta, to: date) ?? date
         copied = false
-    }
-
-    /// クラウド同期フォルダ（Google Drive 等）を選ばせる。選んだ時点で当日分を1回書き出し、
-    /// 実際にファイルが出ることをその場で確認できるようにする
-    private func chooseExportDirectory() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "ここに書き出す"
-        panel.message = "作業ログの書き出し先フォルダを選んでください（Google Drive 等のクラウド同期フォルダ）"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        WorkLogExporter.directoryURL = url
-        exportDirectory = url
-        WorkLogExporter.export(day: date, context: context)
     }
 }

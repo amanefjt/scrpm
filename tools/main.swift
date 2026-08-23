@@ -146,6 +146,60 @@ expect(doc.contains("合計 0:55"), "WorkLog.document: 合計時間を含む")
 expect(WorkLog.fileName(for: logDay, calendar: cal) == "2026-08-17.md",
        "WorkLog.fileName: YYYY-MM-DD.md 形式")
 
+// --- SessionSync ---
+func snapshot(_ id: UUID, _ y: Int, _ m: Int, _ day: Int, note: String = "",
+              hour: Int = 12, completed: Bool = true) -> SessionSnapshot {
+    let start = cal.date(from: DateComponents(year: y, month: m, day: day, hour: hour))!
+    let end = start.addingTimeInterval(15 * 60)
+    return SessionSnapshot(id: id, startTime: start, endTime: end, duration: 15 * 60,
+                           completed: completed, note: note)
+}
+
+let idA = UUID()
+let idB = UUID()
+let idC = UUID()
+
+// エンコード/デコードのラウンドトリップ
+let originalSnapshots = [snapshot(idA, 2026, 8, 17, note: "第1章を読む")]
+let roundTripped = try! SessionSync.decode(SessionSync.encode(originalSnapshots))
+expect(roundTripped == originalSnapshots, "SessionSync: encode/decode のラウンドトリップで値が保たれる")
+
+// planImport: ローカルに無い id はそのまま insert
+let planNew = SessionSync.planImport(local: [], imported: [snapshot(idA, 2026, 8, 17)])
+expect(planNew.toInsert.map(\.id) == [idA] && planNew.notesToFill.isEmpty,
+       "planImport: ローカルに無いセッションは toInsert に入る")
+
+// planImport: ローカルの note が空、インポート側が非空 → note を埋める
+let planFill = SessionSync.planImport(
+    local: [snapshot(idB, 2026, 8, 17, note: "")],
+    imported: [snapshot(idB, 2026, 8, 17, note: "他マシンで書いた内容")]
+)
+expect(planFill.toInsert.isEmpty && planFill.notesToFill[idB] == "他マシンで書いた内容",
+       "planImport: ローカルが空・リモートが非空なら note を埋める")
+
+// planImport: ローカルに既に何か書かれていれば一切触らない（上書き事故の防止）
+let planProtect = SessionSync.planImport(
+    local: [snapshot(idC, 2026, 8, 17, note: "自分で書いた内容")],
+    imported: [snapshot(idC, 2026, 8, 17, note: "他マシンの内容")]
+)
+expect(planProtect.toInsert.isEmpty && planProtect.notesToFill.isEmpty,
+       "planImport: ローカルの note が非空なら同期で上書きしない")
+
+// planImport: 両方空なら何もしない
+let planBothEmpty = SessionSync.planImport(
+    local: [snapshot(idA, 2026, 8, 17, note: "")],
+    imported: [snapshot(idA, 2026, 8, 17, note: "")]
+)
+expect(planBothEmpty.toInsert.isEmpty && planBothEmpty.notesToFill.isEmpty,
+       "planImport: 両方 note が空なら変化なし")
+
+// sanitizedFileName: 表示名 + インスタンスIDの先頭6文字がファイル名になる
+let instanceID = UUID(uuidString: "ABCDEF12-0000-0000-0000-000000000000")!
+expect(SessionSync.sanitizedFileName(deviceLabel: "研究室", instanceID: instanceID) == "研究室-abcdef.json",
+       "sanitizedFileName: 表示名とインスタンスIDから安定したファイル名を作る")
+expect(SessionSync.sanitizedFileName(deviceLabel: "  ", instanceID: instanceID) == "device-abcdef.json",
+       "sanitizedFileName: 表示名が空白のみならフォールバック名を使う")
+
 if failures > 0 {
     print("\(failures) test(s) FAILED")
     exit(1)

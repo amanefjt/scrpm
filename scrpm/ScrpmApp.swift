@@ -13,6 +13,8 @@ struct ScrpmApp: App {
             Self.migrateLegacyStoreIfNeeded(to: storeURL)
             let config = ModelConfiguration(url: storeURL)
             let c = try ModelContainer(for: WorkSession.self, configurations: config)
+            Self.backfillSessionIDsIfNeeded(context: c.mainContext)
+            SessionSyncExporter.importAll(context: c.mainContext)
             let tm = TimerStateManager(context: c.mainContext)
             self.container = c
             self.timerManager = tm
@@ -39,6 +41,27 @@ struct ScrpmApp: App {
         let storeDir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
         try? fm.createDirectory(at: storeDir, withIntermediateDirectories: true)
         return storeDir.appendingPathComponent("default.store")
+    }
+
+    /// `WorkSession.id` を初めて導入した際の一度きりの後始末。
+    ///
+    /// `var id: UUID = UUID()` というデフォルト値は、SwiftData の軽量マイグレーションでは
+    /// 移行時に1回だけ評価される可能性があり、既存レコード全件が同じ UUID になりうる
+    /// （CoreData/SwiftData のよく知られた落とし穴）。id は端末間同期での一意識別に使うため、
+    /// 全件が同じ値のままでは同期が成立しない。まだどこにも同期していない時点なので、
+    /// 既存レコード全件の id を無条件で振り直しても安全（UserDefaults フラグで一度きりに絞る）
+    private static let idBackfillDoneKey = "sessionIDBackfillDone"
+
+    private static func backfillSessionIDsIfNeeded(context: ModelContext) {
+        guard !UserDefaults.standard.bool(forKey: idBackfillDoneKey) else { return }
+        let descriptor = FetchDescriptor<WorkSession>()
+        if let sessions = try? context.fetch(descriptor) {
+            for session in sessions {
+                session.id = UUID()
+            }
+            try? context.save()
+        }
+        UserDefaults.standard.set(true, forKey: idBackfillDoneKey)
     }
 
     /// 旧デフォルト共有パスに残っている既存データを新しい保存先へコピーする（移動ではない）。

@@ -22,6 +22,8 @@
 		AA0000000000000000000047 /* WorkLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000046 /* WorkLog.swift */; };
 		AA0000000000000000000049 /* SessionNoteField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000048 /* SessionNoteField.swift */; };
 		AA000000000000000000004B /* WorkLogExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000004A /* WorkLogExporter.swift */; };
+		AA0000000000000000000053 /* SessionSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000052 /* SessionSnapshot.swift */; };
+		AA0000000000000000000055 /* SessionSyncExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000054 /* SessionSyncExporter.swift */; };
 		AA000000000000000000004D /* WorkLogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000004C /* WorkLogWindow.swift */; };
 		AA000000000000000000004F /* StatusIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000004E /* StatusIndicators.swift */; };
 		AA0000000000000000000051 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000050 /* SettingsView.swift */; };
@@ -50,6 +52,8 @@
 		AA0000000000000000000046 /* WorkLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkLog.swift; sourceTree = "<group>"; };
 		AA0000000000000000000048 /* SessionNoteField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNoteField.swift; sourceTree = "<group>"; };
 		AA000000000000000000004A /* WorkLogExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkLogExporter.swift; sourceTree = "<group>"; };
+		AA0000000000000000000052 /* SessionSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSnapshot.swift; sourceTree = "<group>"; };
+		AA0000000000000000000054 /* SessionSyncExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSyncExporter.swift; sourceTree = "<group>"; };
 		AA000000000000000000004C /* WorkLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkLogWindow.swift; sourceTree = "<group>"; };
 		AA000000000000000000004E /* StatusIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicators.swift; sourceTree = "<group>"; };
 		AA0000000000000000000050 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -119,6 +123,8 @@
 				AA0000000000000000000044 /* ScrpmStateWriter.swift */,
 				AA0000000000000000000046 /* WorkLog.swift */,
 				AA000000000000000000004A /* WorkLogExporter.swift */,
+				AA0000000000000000000052 /* SessionSnapshot.swift */,
+				AA0000000000000000000054 /* SessionSyncExporter.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -238,6 +244,8 @@
 				AA0000000000000000000047 /* WorkLog.swift in Sources */,
 				AA0000000000000000000049 /* SessionNoteField.swift in Sources */,
 				AA000000000000000000004B /* WorkLogExporter.swift in Sources */,
+				AA0000000000000000000053 /* SessionSnapshot.swift in Sources */,
+				AA0000000000000000000055 /* SessionSyncExporter.swift in Sources */,
 				AA000000000000000000004D /* WorkLogWindow.swift in Sources */,
 				AA000000000000000000004F /* StatusIndicators.swift in Sources */,
 				AA0000000000000000000051 /* SettingsView.swift in Sources */,

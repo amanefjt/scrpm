@@ -85,6 +85,7 @@ property になっている）、コード上の `let` は変更不可の値（`
 ## データモデル (SwiftData)
 ```swift
 @Model WorkSession {
+    id: UUID = UUID()        // 端末間同期での一意識別子（2026-08-23 追加）
     startTime: Date
     endTime: Date
     duration: TimeInterval   // 実作業秒数
@@ -96,6 +97,12 @@ property になっている）、コード上の `let` は変更不可の値（`
 
 `note` はデフォルト値を持つので、SwiftData の軽量マイグレーションで既存レコードは空文字になる
 （明示的なマイグレーションプラン不要）。
+
+`id` は事情が異なる。`= UUID()` というデフォルト値は SwiftData の軽量マイグレーションでは
+移行時に1回だけ評価される可能性があり、既存レコード全件が同じ UUID になりうる
+（CoreData/SwiftData のよく知られた落とし穴）。一意性が前提の端末間同期（後述）が
+成立しなくなるため、`ScrpmApp.init()` で一度きり（UserDefaults フラグ `sessionIDBackfillDone`
+でガード）、既存レコード全件の `id` を無条件で振り直すバックフィルを実行している。
 
 **保存先**: `~/Library/Application Support/com.scrpm.app/default.store`（`ScrpmApp.swift` で
 `ModelConfiguration(url:)` により明示指定）。`build/Debug` や `/Applications/scrpm.app` とは
@@ -118,7 +125,9 @@ scrpm/
 │   ├── TimerStateManager.swift      # @Observable 状態機械 + セッション記録
 │   ├── WorkloadStats.swift          # 負荷集計の純関数、SwiftData 非依存
 │   ├── WorkLog.swift                # 作業ログのテキスト整形（純関数）、SwiftData 非依存
-│   └── WorkLogExporter.swift        # 作業ログのファイル書き出し
+│   ├── WorkLogExporter.swift        # 作業ログのファイル書き出し
+│   ├── SessionSnapshot.swift        # 端末間同期のマージ計画（純関数）、SwiftData 非依存
+│   └── SessionSyncExporter.swift    # 端末間同期のファイル書き出し・読み込み
 ├── Views/
 │   ├── RootView.swift               # .timer / .history / .settings ルーティング
 │   ├── TimerView.swift              # 4状態のメインUI + セット進捗インジケータ
@@ -192,6 +201,71 @@ scrpm/
 別マシンからは読むだけで済み、DB を同期する必要がなくなる。
 書き出しの契機はセッション記録時と `finalizeNote()`（作業内容は記録より後に入力されるため）。
 
+## 端末間同期（クラウド同期フォルダ経由、2026-08-23 追加）
+
+研究室PC・自宅PCなど、複数のマシンでそれぞれ独立して scrpm を使い記録した `WorkSession` を、
+履歴画面（日/週/月）で統合して見られるようにする仕組み。上の「作業ログ」書き出しと同じ
+「DB が正本、クラウド上のファイルは派生物」という設計思想の上に、**他マシンの派生物を
+読み込んで自分の DB に取り込む**処理を足したもの。
+
+CloudKit 同期（真のリアルタイム同期）は、フルスクリーンオーバーレイのために App Sandbox を
+無効・アドホック署名にしている本アプリでは使えない。そのため「起動時・履歴画面や作業ログ
+ウィンドウを開いたとき・『今すぐ同期』ボタン」に読み込む、緩やかな同期にとどめている
+（2台を同時に使う想定はしていない）。
+
+### ファイル配置
+`WorkLogExporter.directoryURL`（Markdown の書き出し先と共通）の配下に `session-sync/` を切り、
+マシンごとに1ファイル、全セッションのスナップショットを JSON で書き出す（当日分ではなく毎回
+全件を書き直す冪等な方式。Markdown 書き出しと同じ思想）。ファイル名は
+`<表示名>-<インスタンスIDの先頭6文字>.json`（`SessionSync.sanitizedFileName`）。
+表示名（`SessionSyncExporter.deviceDisplayName`、例:「研究室」「自宅」）はユーザーが
+作業ログウィンドウの footer で設定する UserDefaults の値。インスタンスID
+（`SessionSyncExporter.deviceInstanceID`）は初回アクセス時に生成して以後固定する非表示の
+UUID で、表示名が2台で衝突してもファイル名は衝突しないようにするためのもの。
+表示名・書き出し先ディレクトリ・「今すぐ同期」ボタンは `SettingsView` の「クラウド同期」
+セクションに集約している（2026-08-23。当初は作業ログウィンドウ側にあったが、
+⌘⇧L を押さないとたどり着けず見つけにくかったため移動した）。
+
+### note のマージ方針: 空のときだけ埋める（他マシン優先の上書きはしない）
+`DaySummaryView` の作業ログ一覧は、どのマシンで記録したセッションの `note` でもその場で
+書き足せる（休憩中に入力しそびれた分を後から補う機能）。もし「他マシンの最新版で全フィールド
+上書き」という単純な方式にすると、片方のマシンで書いた note が別マシンの古いスナップショットで
+消える事故が起こりうる。そこで `SessionSync.planImport` は次のルールに統一している:
+- ローカルに無い `id` のセッション → そのまま insert
+- ローカルにあり、**ローカルの note が空・インポート側が非空** → note だけ埋める
+- それ以外（ローカルに既に何か書かれている）→ 一切触らない
+
+`startTime`/`endTime`/`duration`/`completed` はそもそもユーザーが編集できない値なので、
+上書き判定の対象は実質 `note` だけでよい。「同期によって書いた内容が消えることは原理的にない」
+という単調な挙動にすることを優先した（トレードオフ: 非空の note を他マシンでの書き直しで
+更新したい場合は自動反映されない＝両方に手で書く必要がある。データ消失より不便を選んだ）。
+
+### 呼び出し箇所
+書き出し（`SessionSyncExporter.export`）は `WorkLogExporter.export` を呼んでいる箇所すべて
+（`TimerStateManager` の `finishWork()`/`recordInterruptedSession()`/`finalizeNote()`、および
+`DaySummaryView` での note 編集確定時）に併走させている。読み込み（`importAll`）は
+`ScrpmApp.init()`・`HistoryView`/`WorkLogWindow` の `.onAppear` で行う。失敗（JSON破損、
+クラウドのプレースホルダファイルでまだ実体が無い等）は既存の一貫方針どおり `try?` で
+握りつぶし、他ファイルの取り込みは継続する。
+
+### 既存の抜け穴修正について
+この機能を作る過程で、`DaySummaryView.SessionLogRow` の `TextField(text: $session.note)` が
+SwiftData のオートセーブ任せで、`context.save()` も `WorkLogExporter.export()` も明示的に
+呼んでいなかったことが分かった（＝記録画面で後から note を書き足しても、その日の Markdown
+書き出しが即座には更新されていなかった）。同期のトリガーとしても機能しないため、
+`@FocusState` でフォーカスが外れたタイミングで明示的に保存・書き出す処理を追加した
+（`DaySummaryView.commitNote(for:)`）。
+
+### 手動確認手順
+実機2台（研究室PC・自宅PC）があるなら、両方に同じクラウド同期フォルダ（Google Drive 等）を
+設定し、作業ログウィンドウ（⌘⇧L）でそれぞれ異なる表示名を付け、片方で記録→もう片方で
+「今すぐ同期」→履歴画面に反映されることを確認する。
+
+1台のMacだけでも、`~/Library/Application Support/com.scrpm.app/` を丸ごと別名に退避してから
+再度アプリを起動すると、まっさらな「別マシン」状態を模擬できる（元のフォルダに戻せば元の
+記録に復帰する）。同じクラウド同期フォルダ設定のまま表示名だけ変えて2回この手順を踏めば、
+1台でも同期の往復を確認できる。
+
 ## SourceKit 誤検知
 - 同一モジュール内のグローバル定数（`shortBreakDuration` 等）に "Cannot find in scope" が出ることがある
 - ビルドが通れば無視してよい
@@ -256,7 +330,7 @@ Working 中の自動中断（無操作検出）を確認する場合は `workIna
   `checkActivity()` に統合されている（`TimerStateManager.swift`）
 - 週次負荷: 履歴の週タブに過去4週平均を表示。昨日までの 10 日間に休養日
   （日合計 < 30分）がなければ TimerView / HistoryView に警告バナー
-- 負荷集計・状態ファイル・作業ログのテスト: `swiftc -o /tmp/workload_tests scrpm/State/Durations.swift scrpm/State/WorkloadStats.swift scrpm/State/TimerPhase.swift scrpm/State/ScrpmStateWriter.swift scrpm/State/WorkLog.swift tools/main.swift && /tmp/workload_tests`
+- 負荷集計・状態ファイル・作業ログ・端末間同期のテスト: `swiftc -o /tmp/workload_tests scrpm/State/Durations.swift scrpm/State/WorkloadStats.swift scrpm/State/TimerPhase.swift scrpm/State/ScrpmStateWriter.swift scrpm/State/WorkLog.swift scrpm/State/SessionSnapshot.swift tools/main.swift && /tmp/workload_tests`
 - 仕様: docs/superpowers/specs/2026-07-10-hyperfocus-protection.md
 
 ## worklog-capture 連携（2026-07 追加、2026-07-16 時点で worklog-capture 側は凍結中）

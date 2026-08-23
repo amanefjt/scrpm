@@ -4,6 +4,7 @@ import AppKit
 
 struct DaySummaryView: View {
     let date: Date
+    @Environment(\.modelContext) private var context
     @Query(sort: \WorkSession.startTime) private var allSessions: [WorkSession]
     @State private var copied = false
 
@@ -56,7 +57,7 @@ struct DaySummaryView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(sessions) { session in
-                            SessionLogRow(session: session)
+                            SessionLogRow(session: session, onCommit: { commitNote(for: session) })
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,12 +67,23 @@ struct DaySummaryView: View {
         }
         .onChange(of: date) { _, _ in copied = false }
     }
+
+    /// 記録画面での note 編集を確定する。休憩中の入力（TimerStateManager.finalizeNote）とは
+    /// 別経路なので、ここでも明示的に保存・書き出しを行う必要がある
+    /// （SwiftData のオートセーブに任せているだけだと、他マシンへの同期のトリガーがない）
+    private func commitNote(for session: WorkSession) {
+        try? context.save()
+        WorkLogExporter.export(day: session.startTime, context: context)
+        SessionSyncExporter.export(context: context)
+    }
 }
 
 /// 1セッション分の行。作業内容はここで直接書き足せる
 /// （休憩中に入力しそびれた分を、あとから記録画面で補えるようにするため）
 private struct SessionLogRow: View {
     @Bindable var session: WorkSession
+    let onCommit: () -> Void
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -82,6 +94,10 @@ private struct SessionLogRow: View {
             TextField("（未入力）", text: $session.note)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .focused($isFocused)
+                .onChange(of: isFocused) { wasFocused, nowFocused in
+                    if wasFocused && !nowFocused { onCommit() }
+                }
 
             if !session.completed {
                 Text("中断")

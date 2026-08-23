@@ -115,6 +115,7 @@ final class TimerStateManager {
         context.insert(session)
         try? context.save()
         WorkLogExporter.export(day: start, context: context)
+        SessionSyncExporter.export(context: context)
         refreshTodayTotal()
         noteTarget = session
 
@@ -170,6 +171,7 @@ final class TimerStateManager {
         ))
         try? context.save()
         WorkLogExporter.export(day: start, context: context)
+        SessionSyncExporter.export(context: context)
         refreshTodayTotal()
     }
 
@@ -180,6 +182,7 @@ final class TimerStateManager {
         try? context.save()
         // 作業内容はセッション記録より後に入力されるので、書き出しをやり直す必要がある
         WorkLogExporter.export(day: target.startTime, context: context)
+        SessionSyncExporter.export(context: context)
         noteTarget = nil
     }
 
